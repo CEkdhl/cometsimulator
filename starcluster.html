@@ -1,0 +1,727 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+    <meta name="author" content="">
+    <link rel="shortcut icon" href="ico/favicon.ico">
+
+    <title>cometsim</title>
+
+    <!-- Bootstrap core CSS -->
+    <link href="css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Custom styles for this template -->
+    <link rel="stylesheet" href="css/prism.css">
+    
+    <style>
+    	.highlight { margin-bottom: 20px; }
+    	.animation { float: right; width: 200px; height: 150px; margin-left:20px; }
+    	.animation2 { float: right; width: 400px; height: 300px; margin:20px; }
+    </style>
+    
+	<script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.0/jquery.min.js"></script>
+	<script type="text/javascript"  src="js/prism.js"></script>
+	<script type="text/javascript">
+		$(function() {
+			$("img.animation, img.animation2").hover(function() {
+				$(this).attr("src",$(this).attr("data-animsrc"));
+			}, function() {
+				$(this).attr("src","images/playbutton.png");
+			});
+			$("img.animation, img.animation2").load(function() {
+				if($(this).attr("data-loaded") == "false") {
+					$(this).attr("src","images/playbutton.png");
+					$(this).attr("data-loaded","true");
+				}	
+			});
+		})
+	</script>
+
+    <!-- Just for debugging purposes. Don't actually copy this line! -->
+    <!--[if lt IE 9]><script src="../../assets/js/ie8-responsive-file-warning.js"></script><![endif]-->
+
+    <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!--[if lt IE 9]>
+      <script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
+      <script src="https://oss.maxcdn.com/libs/respond.js/1.4.2/respond.min.js"></script>
+    <![endif]-->
+  </head>
+
+  <body>
+    <div class="container">
+
+      <div class="page-header">
+        <h1>Implementing a star cluster</h1>
+        <p class="lead">A real world example of the kind of simulation the software can perform.</p>
+      </div>
+
+
+	  <h4>Preamble</h4>
+	  
+	  	  <div class="row">
+	  <div class="col-md-8">
+	  <p>One of the main goals with the simulator software was to be able to simulate a young star cluster with comets in it, to see what happens with the comets after millions of years. The idea is that a young star cluster - modeled as a bunch of point masses - is surrounded by a molecular gas. This molecular gas can be thought of as a gravitational well, which keeps the stars together as long as they are bound to it. After three million years the gas dissipates so much that it doesn't have to be accounted for anymore. Without the well holding the stars together they catapult each other away out into the vast emptiness that surrounds them. Comets that formed in the protoplanetary disks of the stars will initially orbit the stars by which they were born, but close encounters with other stars may rip those comets away from such orbits. When the stars start to spread out they may again become bound to any of the stars. Millions of years later they could wind up in orbit around an isolated star that is not their birth star. It is interesting to analyze how common this is because the phenomenon could explain the large number of comets that exist inside the spherical comet cloud known as the Oort cloud that surrounds the solar system.</p>
+	  
+	  <p>This document gives a brief description of each Java class that is a part of the simulation. The purpose is to provide more example code to make it easier to understand how to do simulations.</p>
+	  </div>
+		  <div class="col-md-4">
+			  <div class="thumbnail">
+				  <img src="animations/starclusteranimation.gif" data-animsrc="animations/starclusteranimation.gif" data-loaded="false" class="animation2" style="width:498px; height:281px;" alt="Star cluster evolution"/>
+				  <div class="clearfix"></div>
+				  <div class="caption">
+					  <p>The animation demonstrates the evolution of a star cluster with fifteen stars. A gas keeps the stars together for the first three million years, after it gets removed the stars scatter. Stars are yellow, blue markers represent comets that started in orbit around one of the stars. They often get pulled off of their original orbit due to close star-star encounters.</p>
+				  </div>
+			</div>
+		</div>
+	</div>
+	  	  
+	  <hr />
+      <h4>Star factory</h4>
+      <p>The first component is a class that generates stars. In order to be able to generate stars this class must implement the <a href="http://en.wikipedia.org/wiki/Initial_mass_function">initial mass function</a>. After that the masses should be distributed within a sphere of a given radius. The radii of the different stars are selected using a distribution, and then the smallest radius is paired with the heaviest star, the second smallest radius with the second heaviest star and so on. The class should also decide the velocity of each star at the time of it being created. In this simulation it was decided to let the star cluster start in a virial state, that is, with energy distribution according to the <a href="http://en.wikipedia.org/wiki/Virial_theorem">Virial theorem"</a>. In order to be able to be able to use this theorem the class needs to be able to calculate the potential and kinetic energy of each star. In this case the potential is both the mutual potential between the stars and the potential that comes from the gas in which the stars are embedded.</p>
+      <div class="highlight">
+      	<pre>
+<code class="language-java">import cometsim.Constants;
+import cometsim.UnknownBody;
+import cometsim.XYZCoordinates;
+import org.apache.commons.math3.util.FastMath;
+import java.util.Arrays;
+import java.util.Random;
+
+public class StarFactory {
+
+    double R;
+    int ntot;
+    Random rand = new Random();
+    double totMass;
+    double vratio;
+
+    public StarFactory(double R, int ntot) {
+        this.R = R;
+        this.ntot = ntot;
+        this.vratio = 0.5;
+    }
+
+    public StarFactory(double R, int ntot, double vratio) {
+        this.R = R;
+        this.ntot = ntot;
+        this.vratio = vratio;
+    }
+
+    public UnknownBody[] random() {
+
+        double[][] coordinates = new double[ntot][3];
+        double[] mass = new double[ntot];
+
+        for(int i=0; i&lt;ntot; i++) {
+            coordinates[i] = weightedCoordinateInSphere(R);
+            mass[i] = randomMass();
+        }
+
+        Arrays.sort(coordinates, new java.util.Comparator&lt;double[]&gt;() {
+            public int compare(double[] a, double[] b) {
+                return Double.compare(
+                        FastMath.sqrt(a[0]*a[0]+a[1]*a[1]+a[2]*a[2]),
+                        FastMath.sqrt(b[0]*b[0]+b[1]*b[1]+b[2]*b[2])
+                );
+            }
+        });
+        Arrays.sort(mass);
+
+        for (int i = 0; i &lt; mass.length / 2; i++) {
+            double temp = mass[i];
+            mass[i] = mass[mass.length - 1 - i];
+            mass[mass.length - 1 - i] = temp;
+        }
+
+        double totalMass = 0;
+        for(int i=0; i&lt;ntot; i++) {
+            totalMass += mass[i];
+        }
+
+        totMass = totalMass;
+
+        double[] gasP = new double[ntot];
+        for(int i=0; i&lt;ntot; i++) {
+            gasP[i] = gasPotential(R,totalMass,coordinates[i]);
+        }
+
+        double[] mutualP = mutualPotential(coordinates, mass);
+
+        double totalP=0;
+        for(int i=0; i&lt;ntot; i++) {
+            totalP+=gasP[i]+mutualP[i];
+        }
+
+        double[][] v = new double[ntot][3];
+        for(int i=0; i&lt;ntot; i++) {
+            double[] dir = normalizedRandomVector();
+            double velocity = FastMath.sqrt(FastMath.abs(2*vratio*totalP)/totalMass);
+            v[i][0] = velocity*dir[0];
+            v[i][1] = velocity*dir[1];
+            v[i][2] = velocity*dir[2];
+        }
+
+        UnknownBody[] bodies = new UnknownBody[ntot];
+        for(int i=0; i&lt;ntot; i++) {
+            bodies[i] = new UnknownBody(
+                    &quot;Star&quot;+i,
+                    mass[i],
+                    new XYZCoordinates(coordinates[i][0],
+                            coordinates[i][1],
+                            coordinates[i][2],
+                            v[i][0],
+                            v[i][1],
+                            v[i][2]
+                            )
+            );
+        }
+
+        return bodies;
+    }
+
+    private double randomMass() {
+        return Constants.sunMass*FastMath.pow(rand.nextDouble()*(1-2.35)/0.53+FastMath.pow(0.5,1-2.35), 1/(1-2.35));
+    }
+
+    private double[] weightedCoordinateInSphere(double R) {
+        double[] rhat = normalizedRandomVector();
+
+        //double rnorm = R*FastMath.sqrt(rand.nextDouble());
+        double rnorm = R/(5*FastMath.sqrt(FastMath.pow(rand.nextDouble(),-0.666667)-1));
+
+        double[] r = {
+                rnorm*rhat[0],
+                rnorm*rhat[1],
+                rnorm*rhat[2]
+        };
+
+        return r;
+    }
+
+    private double[] randomCoordinate(double R) {
+        double x = -R+rand.nextInt((int) (2*R + 1));
+        double y = -R+rand.nextInt((int) (2*R + 1));
+        double z = -R+rand.nextInt((int) (2*R + 1));
+        double[] coords = {x,y,z};
+
+        return coords;
+    }
+
+    private double gasPotential(double R, double M, double[] c) {
+        return -(Constants.G*M)/(FastMath.sqrt(c[0]*c[0]+c[1]*c[1]+c[2]*c[2]+R*R));
+    }
+
+    private double[] mutualPotential(double[][] r, double[] m) {
+
+        double[] p = new double[r.length];
+        for(int i=0; i&lt;r.length; i++) {
+            for(int j=0; j&lt;r.length; j++) {
+                if(i==j) continue;
+
+                double deltax = r[i][0]-r[j][0];
+                double deltay = r[i][1]-r[j][1];
+                double deltaz = r[i][2]-r[j][2];
+
+                p[i]+=-0.5*Constants.G*m[i]*m[j]/FastMath.sqrt(deltax*deltax+deltay*deltay+deltaz*deltaz);
+            }
+        }
+
+        return p;
+    }
+
+    private double[] normalizedRandomVector() {
+        double theta = FastMath.acos(2*rand.nextDouble()-1);
+        double phi = 2*Math.PI*rand.nextDouble();
+
+        double[] r = {
+                FastMath.sin(theta)*FastMath.cos(phi),
+                FastMath.sin(theta)*FastMath.sin(phi),
+                FastMath.cos(theta)
+        };
+
+        return r;
+    }
+
+    public double getTotalMass() {
+        return totMass;
+    }
+}</code>
+	  </pre>
+	  </div>
+	  
+	  <hr />
+	  <h4>Comet factory</h4>
+      <p>Just as there is a class that creates stars there must be a class that creates comets. In this simulation the comets all started in orbit around their respective host stars. For that reason there is one comet factory for each star. Comets generated by a comet factory are positioned at its periapsis, its closest point to its central body, in regards to a specific star and given a velocity corresponding to that of the desired orbit.</p>
+
+      <div class="highlight">
+      	<pre>
+<code class="language-java">import cometsim.Constants;
+import cometsim.UnknownBody;
+import cometsim.XYZCoordinates;
+import org.apache.commons.math3.util.FastMath;
+
+import java.util.Random;
+
+public class CometFactory {
+
+    double[] ivs;
+    int ntot;
+    double amin;
+    double amax;
+    double q;
+    UnknownBody star;
+    Random rand = new Random();
+
+    public CometFactory(UnknownBody star, int ntot, double amin, double amax, double q) {
+        ivs = star.getIVs();
+        this.ntot = ntot;
+        this.amin = amin;
+        this.amax = amax;
+        this.q = q;
+        this.star = star;
+    }
+
+    public UnknownBody[] random() {
+        UnknownBody bodies[] = new UnknownBody[ntot];
+
+        for(int i=0; i&lt;ntot; i++) {
+            bodies[i] = randomComet(&quot;Comet&quot;+i);
+        }
+
+        return bodies;
+    }
+
+    private UnknownBody randomComet(String name) {
+
+        double starV = FastMath.sqrt(ivs[3]*ivs[3]+ivs[4]*ivs[4]+ivs[5]*ivs[5]);
+
+        double[] pos = {
+                ivs[0]+q*ivs[3]/starV,
+                ivs[1]+q*ivs[4]/starV,
+                ivs[2]+q*ivs[5]/starV
+        };
+
+        double cometVRel = FastMath.sqrt(Constants.G*star.getMass()*(2/q-1/randomSemimajorAxis()));
+
+        double[] perpendicular = new double[3];
+        if( !(ivs[3]/FastMath.abs(ivs[3]) == -1 &amp;&amp; ivs[4]/FastMath.abs(ivs[4]) == 1 &amp;&amp; ivs[5]/FastMath.abs(ivs[5]) == 0) ) {
+            double norm = FastMath.sqrt(2*ivs[5]*ivs[5]+(ivs[3]+ivs[4])*(ivs[3]+ivs[4]));
+
+            perpendicular[0] = ivs[5]/norm;
+            perpendicular[1] = ivs[5]/norm;
+            perpendicular[2] = -ivs[3]-ivs[4]/norm;
+        }
+        else {
+            double norm = FastMath.sqrt(2*ivs[3]*ivs[3]+(ivs[4]+ivs[5])*(ivs[4]+ivs[5]));
+
+            perpendicular[0] = -ivs[4]-ivs[5]/norm;
+            perpendicular[1] = ivs[3]/norm;
+            perpendicular[2] = ivs[3]/norm;
+        }
+
+        double[] cometV = {
+          ivs[3]+cometVRel*perpendicular[0],
+          ivs[4]+cometVRel*perpendicular[1],
+          ivs[5]+cometVRel*perpendicular[2]
+        };
+
+        return new UnknownBody(name, 0, new XYZCoordinates(pos[0], pos[1], pos[2], cometV[0], cometV[1], cometV[2]));
+    }
+
+    private double randomSemimajorAxis() {
+        return amin+rand.nextDouble()*(amax-amin);
+    }
+}</code>
+      	</pre>
+      </div>
+   	  
+	  <hr />
+	  <h4>The star cluster</h4>
+      <p>Each simulation must have a master class that adjusts the settings and starts the simulation. This is that class. It creates a given number of stars and then creates a comet factory for each star. It adds the bodies and the force field representing the gas to the simulation and starts it. In reality stars aren't created at the exact same time so this class is also responsible for gradually adding the stars to the simulation instead of adding them all at once.</p>
+      
+      <div class="highlight">
+      	<pre>
+<code class="language-java">import cometsim.*;
+import org.apache.commons.math3.exception.MaxCountExceededException;
+import org.apache.commons.math3.ode.sampling.StepHandler;
+import org.apache.commons.math3.ode.sampling.StepInterpolator;
+
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Calendar;
+import java.util.Random;
+
+public class StarCluster2 {
+
+    public static void main(String[] args) {
+
+        int nrOfStars = 15;
+        double R = 6E4;
+        double SFE = 0.1;
+        double vratio = 0.5;
+        double gasLifeTime = 3*365E6;
+        double simLength = 50*365E6;
+        int nrOfCometsPerStar = 2;
+        int nrOfCometClouds = 15;
+        String name = &quot;StarCluster&quot;;
+
+        System.out.println(&quot;Placement of &quot;+nrOfStars+&quot; stars initialized &quot;+new SimpleDateFormat(&quot;HH:mm:ss&quot;).format(Calendar.getInstance().getTime()));
+
+        StarFactory starFactory = new StarFactory(R,nrOfStars,vratio);
+        UnknownBody[] stars = starFactory.random();
+
+        Simulator sim = new Simulator();
+
+        sim.addExternalForce(new PlummerSphere(R,(1/SFE-1)*starFactory.getTotalMass(), gasLifeTime));
+
+        sim.setRelativeTolerance(1E-6);
+        sim.setAbsoluteTolerance(1E-6);
+
+        sim.setMutualGravity(true);
+        sim.setContinuousOutput(false);
+
+        int[] birthDays = new int[nrOfStars];
+        Random rand = new Random();
+        for(int i=0; i&lt;nrOfStars; i++) {
+            birthDays[i] = rand.nextInt(365*1000000);
+        }
+        Arrays.sort(birthDays);
+
+        double[] ivs = new double[6*nrOfStars];
+
+        for(int i=0; i&lt;nrOfStars; i++) {
+
+            System.out.println(&quot;Star #&quot;+i+&quot; added to the system.&quot;);
+
+            for(int j=0; j&lt;i; j++) {
+                sim.add(new UnknownBody(&quot;Star&quot;+j,stars[j].getMass(),new XYZCoordinates(ivs[j*6],ivs[j*6+1],ivs[j*6+2],ivs[j*6+3],ivs[j*6+4],ivs[j*6+5])));
+            }
+
+            sim.add(stars[i]);
+
+            if(i==0) {
+                sim.simulate(0, birthDays[i]);
+            }
+            else if(i==nrOfStars-1) {
+                sim.simulate(birthDays[i-1],365E6);
+            }
+            else {
+                sim.simulate(birthDays[i-1],birthDays[i]);
+            }
+
+            ivs=sim.getFinalValue();
+            sim.removeUnknownBodies();
+        }
+
+        System.out.println(&quot;Initializing placement of comets &quot;+new SimpleDateFormat(&quot;HH:mm:ss&quot;).format(Calendar.getInstance().getTime()));
+
+        Simulator sim2 = new Simulator();
+
+        sim2.addExternalForce(new PlummerSphere(R,(1/SFE-1)*starFactory.getTotalMass(), gasLifeTime));
+
+        sim2.setRelativeTolerance(1E-6);
+        sim2.setAbsoluteTolerance(1E-6);
+
+        sim2.setMutualGravity(true);
+        sim2.setContinuousOutput(false);
+
+        ArrayList&lt;UnknownBody&gt; allUnknownBodies = new ArrayList&lt;UnknownBody&gt;();
+
+        UnknownBody[] newStars = new UnknownBody[nrOfStars];
+        for(int i=0; i&lt;nrOfStars; i++) {
+            newStars[i] = new UnknownBody(&quot;Star&quot;+i,stars[i].getMass(),new XYZCoordinates(ivs[i*6],ivs[i*6+1],ivs[i*6+2],ivs[i*6+3],ivs[i*6+4],ivs[i*6+5]));
+            sim2.add(newStars[i]);
+            allUnknownBodies.add(newStars[i]);
+        }
+
+        ArrayList&lt;Integer&gt; chosenStars = new ArrayList&lt;Integer&gt;(nrOfCometClouds);
+        for(int i=0; i&lt;nrOfCometClouds; i++) {
+            int newval = rand.nextInt(nrOfStars);
+            while(chosenStars.contains(newval)) newval = rand.nextInt(nrOfStars);
+            chosenStars.add(newval);
+        }
+
+        for(int starIndex: chosenStars) {
+        CometFactory cometFactory = new CometFactory(newStars[starIndex], nrOfCometsPerStar, 1000, 5000, 100);
+            for(UnknownBody comet: cometFactory.random()) {
+                sim2.add(comet);
+                allUnknownBodies.add(comet);
+            }
+        }
+
+        sim2.addStepHandler(new SaveBackup(&quot;Backups/StarCluster2/StarCluster&quot;, 0, 10E6, allUnknownBodies));
+
+        System.out.println(&quot;Number of bodies in total: &quot;+sim2.getUnknownBodies().size());
+
+        System.out.println(&quot;Simulation started &quot;+new SimpleDateFormat(&quot;HH:mm:ss&quot;).format(Calendar.getInstance().getTime()));
+
+        sim2.simulate(365E6,simLength);
+
+        System.out.println(&quot;Simulation ended &quot;+new SimpleDateFormat(&quot;HH:mm:ss&quot;).format(Calendar.getInstance().getTime())+&quot;. Time elapsed: &quot;+sim.getTiming()/60+&quot; minutes.&quot;);
+    }
+
+}</code>
+	  	</pre>
+	  </div>
+	  
+	  <hr />
+	  <h4>Plummer sphere</h4>
+	  <p>A <a href="http://en.wikipedia.org/wiki/Plummer_model">Plummer sphere</a> was used to represent the gas in the star cluster. This class represents that force field.</p>
+
+	  <div class="highlight">
+      	<pre>
+<code class="language-java">import com.sun.tools.javac.code.Attribute;
+import cometsim.Constants;
+import cometsim.ExternalForce;
+import cometsim.HasPotential;
+import cometsim.UnknownBody;
+import org.apache.commons.math3.util.FastMath;
+import static cometsim.Constants.*;
+
+public class PlummerSphere extends ExternalForce implements HasPotential {
+
+    double R;
+    double M;
+    double T;
+
+    public PlummerSphere(double R, double M, double T) {
+        this.R = R;
+        this.M = M;
+        this.T = T;
+    }
+
+    public double[] getAcceleration(double t, double[] y, UnknownBody body) {
+        double[] acc = {0, 0, 0};
+
+        if(t &lt; T) {
+            double coeff = -G*M/(FastMath.pow(y[0]*y[0]+y[1]*y[1]+y[2]*y[2]+R*R,1.5));
+            acc[0] = coeff*y[0];
+            acc[1] = coeff*y[1];
+            acc[2] = coeff*y[2];
+        }
+
+        return acc;
+    }
+
+    public double getPotential(double t, double[] y, UnknownBody body) {
+        return -(Constants.G*M)/FastMath.sqrt(y[0]*y[0]+y[1]*y[1]+y[2]*y[2]+R*R);
+    }
+
+}</code>
+	  	</pre>
+	  </div>
+	  	  
+	  <hr />
+	  <h4>Load star cluster backup</h4>
+	  <p>Simulations can be time consuming. The last thing you want to happen is that a simulation quits after half that time and you have to start all over. For that reason a custom backup system was built on top of the simulator. This class is a part of that backup system. It is responsible for loading a backup from file and start from that point. With the backup system is doesn't matter if a simulation is interrupted, you can start it from that point and let the simulation continue as if nothing ever happened.</p>
+
+      <div class="highlight">
+      <pre>
+<code class="language-java">import cometsim.Simulator;
+import cometsim.UnknownBody;
+import java.io.FileInputStream;
+import java.io.ObjectInputStream;
+
+public class LoadStarClusterBackup {
+
+    public static void main(String[] args) {
+
+        double R = 6E4;
+        double SFE = 0.1;
+        double gasLifeTime = 3*365E6;
+        double simLength = 50*365E6;
+
+        String name = &quot;Backups/StarCluster1/StarCluster&quot;;
+        String backupIndex = &quot;436&quot;;
+
+        try{
+            FileInputStream in1 = new FileInputStream(name+&quot;_&quot;+backupIndex+&quot;.ser&quot;);
+            ObjectInputStream s1 = new ObjectInputStream(in1);
+            Backup backup = (Backup) s1.readObject();
+
+            double totalMass = 0;
+            for(UnknownBody b: backup.bodies) {
+                totalMass+=b.getMass();
+            }
+
+            Simulator sim = new Simulator();
+
+            sim.addExternalForce(new PlummerSphere(R,(1/SFE-1)*totalMass, gasLifeTime));
+
+            sim.setRelativeTolerance(1E-6);
+            sim.setAbsoluteTolerance(1E-6);
+
+            sim.setMutualGravity(true);
+            sim.setContinuousOutput(false);
+
+            for(UnknownBody b: backup.bodies) {
+                sim.add(b);
+            }
+
+            sim.addStepHandler(new SaveBackup(name, backup.index+1, 1E6, backup.bodies));
+
+            sim.setMinStep(1E-5);
+
+            sim.simulate(backup.t, simLength);
+
+        } catch(Exception e) { System.out.println(&quot;Could not load file.&quot;); }
+
+    }
+
+}
+</code>
+	  	</pre>
+	  </div>
+	  	  
+	  <hr />
+	  <h4>Handle backup data</h4>
+	  <p>The backup system saves backups regularly. This class walks through all backups and writes the information they contain to file. Additionally it could be used to process the data and write processed information to file.</p>
+
+      <div class="highlight">
+      	<pre>
+<code class="language-java">import cometsim.UnknownBody;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.ObjectInputStream;
+import java.io.PrintWriter;
+
+public class HandleBackupedData {
+
+    public static void main(String[] args) {
+        String name = &quot;Backups/StarCluster1/StarCluster&quot;;
+        int min_i = 460;
+        int max_i = 467;
+
+        try {
+            PrintWriter writer = new PrintWriter(new File(name+&quot;_values.txt&quot;),&quot;UTF-8&quot;);
+
+            for(int i=min_i; i&lt;max_i; i++) {
+                FileInputStream in1 = new FileInputStream(name+&quot;_&quot;+i+&quot;.ser&quot;);
+                ObjectInputStream s1 = new ObjectInputStream(in1);
+                Backup backup = (Backup) s1.readObject();
+
+                String str = backup.t+&quot; &quot;;
+                for(UnknownBody b: backup.bodies) {
+                    double[] ivs = b.getIVs();
+                    str+=ivs[0]+&quot; &quot;+ivs[1]+&quot; &quot;+ivs[2]+&quot; &quot;+ivs[3]+&quot; &quot;+ivs[4]+&quot; &quot;+ivs[5]+&quot; &quot;;
+                }
+
+                writer.println(str);
+            }
+
+        } catch(Exception e) { e.printStackTrace(); }
+    }
+
+}</code>
+	  	</pre>
+	  </div>
+	  
+	  <hr />
+	  <h4>Backup</h4>
+	  <p>This is the information wrapper that the backup system saves, in a serialized form, as a file.</p>
+      <div class="highlight">
+      	<pre>
+<code class="language-java">import cometsim.Body;
+import cometsim.UnknownBody;
+import cometsim.XYZCoordinates;
+
+import java.io.Serializable;
+import java.util.ArrayList;
+
+public class Backup implements Serializable {
+
+    ArrayList&lt;UnknownBody&gt; bodies = new ArrayList&lt;UnknownBody&gt;();
+    double t;
+    int index;
+
+    public Backup(int index, double t, ArrayList&lt;UnknownBody&gt; givenBodies,double[] values) {
+
+        for(int i=0; i&lt;values.length; i+=6) {
+            XYZCoordinates elements = new XYZCoordinates(values[i], values[i+1], values[i+2], values[i+3], values[i+4], values[i+5]);
+
+            try {
+                Body newBody = givenBodies.get(i/6).clone();
+                newBody.setElements(elements);
+                bodies.add((UnknownBody) newBody);
+            } catch(Exception e) { e.printStackTrace(); }
+        }
+
+        this.t = t;
+        this.index = index;
+    }
+
+}</code>
+	  	</pre>
+	  </div>
+	  
+	  	  <hr />
+	  <h4>Save backup</h4>
+	  <p>This is the class that populates the information wrappers and actually creates the backup files. It is implemented as a step handler. Each time it gets called it creates a new backup.</p>
+      <div class="highlight">
+      	<pre>
+<code class="language-java">import cometsim.UnknownBody;
+import org.apache.commons.math3.ode.sampling.StepHandler;
+import org.apache.commons.math3.ode.sampling.StepInterpolator;
+
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.ObjectOutputStream;
+import java.util.ArrayList;
+
+public class SaveBackup implements StepHandler {
+
+    double interval;
+    double t0;
+    String name;
+    double lastT;
+    ArrayList&lt;UnknownBody&gt; bodies;
+    int index;
+
+    public SaveBackup(String name, int index, double interval, ArrayList&lt;UnknownBody&gt; bodies) {
+        this.interval = interval;
+        this.name = name;
+        this.bodies = bodies;
+        this.index = index;
+    }
+
+    public void init(double t0, double[] y0, double t) {
+        this.t0 = t0;
+        this.lastT = t0;
+    }
+
+    public void handleStep(StepInterpolator interpolator, boolean isLast) {
+        double   t = interpolator.getCurrentTime();
+        double[] y = interpolator.getInterpolatedState();
+
+        if(t &gt; lastT+interval) {
+
+            Backup backup = new Backup(index,t,bodies,y);
+
+            try{
+                FileOutputStream f = new FileOutputStream(name+&quot;_&quot;+index+&quot;.ser&quot;);
+                ObjectOutputStream out = new ObjectOutputStream(f);
+                out.writeObject(backup);
+                out.close();
+                f.close();
+            } catch( IOException i ) {
+                i.printStackTrace();
+                System.out.println(&quot;Could not create file.&quot;);
+            }
+
+            index++;
+            lastT = t;
+        }
+
+    }
+
+}</code>
+	  	</pre>
+	  </div>
+  </body>
+</html>
