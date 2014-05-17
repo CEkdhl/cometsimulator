@@ -409,7 +409,7 @@ sim.addEventHandler(new EventHandler() {
     }
 
     public double g(double t, double[] y) {
-        return y[0]*y[3]+y[1]*y[2]*y[4]+y[3]*y[5];
+        return y[0]*y[3]+y[1]*y[4]+y[2]*y[5];
     }
 
     public Action eventOccurred(double t, double[] y, boolean increasing) {
