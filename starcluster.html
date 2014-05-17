@@ -55,7 +55,7 @@
     <div class="container">
 
       <div class="page-header">
-        <h1>Implementing a star cluster</h1>
+        <h1>Case study: Simulating a star cluster</h1>
         <p class="lead">A real world example of the kind of simulation the software can perform.</p>
       </div>
 
@@ -64,16 +64,16 @@
 	  
 	  	  <div class="row">
 	  <div class="col-md-8">
-	  <p>One of the main goals with the simulator software was to be able to simulate a young star cluster with comets in it, to see what happens with the comets after millions of years. The idea is that a young star cluster - modeled as a bunch of point masses - is surrounded by a molecular gas. This molecular gas can be thought of as a gravitational well, which keeps the stars together as long as they are bound to it. After three million years the gas dissipates so much that it doesn't have to be accounted for anymore. Without the well holding the stars together they catapult each other away out into the vast emptiness that surrounds them. Comets that formed in the protoplanetary disks of the stars will initially orbit the stars by which they were born, but close encounters with other stars may rip those comets away from such orbits. When the stars start to spread out they may again become bound to any of the stars. Millions of years later they could wind up in orbit around an isolated star that is not their birth star. It is interesting to analyze how common this is because the phenomenon could explain the large number of comets that exist inside the spherical comet cloud known as the Oort cloud that surrounds the solar system.</p>
+	  <p>One of the main goals with the simulator software was to simulate a young star cluster with embedded comets, to see what happens with the comets after millions of years. The idea is that a young star cluster - modeled as a bunch of point masses - is surrounded by gas. This gas can be thought of as a gravitational well, which keeps the stars together as long as they are bound to it. After three million years the gas rapidly dissipates until it doesn't have to be accounted for anymore. Without the well holding the stars together they catapult each other away out into the vast emptiness that surrounds them. Comets that formed in the protoplanetary disks of the stars will initially orbit the stars by which they were born, but close encounters with other stars may rip those comets away from such orbits. When the stars start to spread out they may again become bound to any of the stars. Millions of years later they could wind up in orbit around an isolated star that is not their birth star. It is interesting to analyze how common this is because the phenomenon could explain the large number of comets that exist inside the spherical comet cloud known as the Oort cloud that surrounds the solar system.</p>
 	  
-	  <p>This document gives a brief description of each Java class that is a part of the simulation. The purpose is to provide more example code to make it easier to understand how to do simulations.</p>
+	  <p>This document gives a brief description of each Java class that is a part of the simulation. The purpose is to provide more example code to make it easier to understand how to do simulations with the software.</p>
 	  </div>
 		  <div class="col-md-4">
 			  <div class="thumbnail">
 				  <img src="animations/starclusteranimation.gif" data-animsrc="animations/starclusteranimation.gif" data-loaded="false" class="animation2" style="width:498px; height:281px;" alt="Star cluster evolution"/>
 				  <div class="clearfix"></div>
 				  <div class="caption">
-					  <p>The animation demonstrates the evolution of a star cluster with fifteen stars. A gas keeps the stars together for the first three million years, after it gets removed the stars scatter. In this animation t=0 corresponds to the system after one million year, at which time all stars have been born. It is at that time that the comets were created. Stars are yellow, blue markers represent comets that started in orbit around one of the stars. They often get pulled off of their original orbit due to close star-star encounters.</p>
+					  <p>The animation demonstrates the evolution of a star cluster with fifteen stars. A gas keeps the stars together for the first three million years, after it gets removed the stars scatter. In this animation t=0 corresponds to the system after one million year, at which time all stars have been born. It is at that time that the comets were created. Stars are darkened yellow, blue markers represent comets. They often get pulled off of their original orbit due to close star-star encounters.</p>
 				  </div>
 			</div>
 		</div>
@@ -81,7 +81,7 @@
 	  	  
 	  <hr />
       <h4>Star factory</h4>
-      <p>The first component is a class that generates stars. In order to be able to generate stars this class must implement the <a href="http://en.wikipedia.org/wiki/Initial_mass_function">initial mass function</a>. After that the masses should be distributed within a sphere of a given radius. The radii of the different stars are selected using a distribution, and then the smallest radius is paired with the heaviest star, the second smallest radius with the second heaviest star and so on. The class should also decide the velocity of each star at the time of it being created. In this simulation it was decided to let the star cluster start in a virial state, that is, with energy distribution according to the <a href="http://en.wikipedia.org/wiki/Virial_theorem">Virial theorem"</a>. In order to be able to be able to use this theorem the class needs to be able to calculate the potential and kinetic energy of each star. In this case the potential is both the mutual potential between the stars and the potential that comes from the gas in which the stars are embedded.</p>
+      <p>The first component is a class that generates stars. In order to be able to generate stars this class must implement the <a href="http://en.wikipedia.org/wiki/Initial_mass_function">initial mass function</a>. After that the masses should be distributed within a sphere of a given radius. The radial distance from the center was selected for each star using a probability distribution, and then the smallest radius was paired with the heaviest star, the second smallest radius with the second heaviest star and so on. The class should also decide the velocity of each star at the time of it being created. In this simulation it was decided to let the star cluster start in a virial state, that is, with energy distribution according to the <a href="http://en.wikipedia.org/wiki/Virial_theorem">Virial theorem"</a>. In order to be able to be able to use this theorem the class needs to be able to calculate the potential and kinetic energy of each star. In this case the potential is both the mutual potential between the stars and the potential that comes from the gas in which the stars are embedded.</p>
       <div class="highlight">
       	<pre>
 <code class="language-java">import cometsim.Constants;
@@ -255,7 +255,7 @@ public class StarFactory {
 	  
 	  <hr />
 	  <h4>Comet factory</h4>
-      <p>Just as there is a class that creates stars there must be a class that creates comets. In this simulation the comets all started in orbit around their respective host stars. For that reason there is one comet factory for each star. Comets generated by a comet factory are positioned at its periapsis, its closest point to its central body, in regards to a specific star and given a velocity corresponding to that of the desired orbit.</p>
+      <p>Just as there is a class that creates stars there must be a class that creates comets. In this simulation the comets all started in orbit around their respective host star. For that reason there is one instance of the comet factory for each star, and each instance is specialized at creating comets for that particular star. Comets generated by a comet factory are positioned at their periapsis and given a velocity corresponding to that of the desired orbit.</p>
 
       <div class="highlight">
       	<pre>
@@ -518,7 +518,7 @@ public class PlummerSphere extends ExternalForce implements HasPotential {
 	  	  
 	  <hr />
 	  <h4>Load star cluster backup</h4>
-	  <p>Simulations can be time consuming. The last thing you want to happen is that a simulation quits after half that time and you have to start all over. For that reason a custom backup system was built on top of the simulator. This class is a part of that backup system. It is responsible for loading a backup from file and start from that point. With the backup system is doesn't matter if a simulation is interrupted, you can start it from that point and let the simulation continue as if nothing ever happened.</p>
+	  <p>Simulations can be time consuming. The last thing you want to happen is that a simulation quits after half that time and you have to start all over. For that reason a custom backup system was built on top of the simulator. This class is a part of that backup system. It is responsible for loading a backup from file and restarting the simulating from that point. With the backup system it doesn't matter if a simulation is interrupted, you can start it from that point and let the simulation continue as if nothing ever happened.</p>
 
       <div class="highlight">
       <pre>
