@@ -8,4 +8,4 @@ This repository contains an N-body simulator written in Java. It was originally 
 
 Setup
 ==============
-In order to compile this code you will need to include [Apache Commons Math](http://commons.apache.org/proper/commons-math/) in your project. We owe a great debt to Apache Commons Math because the underlying ODE-solver comes from this package. In order to compile visualization.java you will need to include [Java3D](https://java3d.java.net/binary-builds.html).
+In order to compile this code you will need to include [Apache Commons Math](http://commons.apache.org/proper/commons-math/) in your project. We owe a great debt to Apache Commons Math because the underlying ODE solver comes from this package. In order to compile visualization.java you will need to include [Java3D](https://java3d.java.net/binary-builds.html).
