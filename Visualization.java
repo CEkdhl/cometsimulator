@@ -1,10 +1,8 @@
-
 package cometsim;
 
 import java.applet.Applet;
 import java.awt.*;
 import java.awt.event.*;
-
 import com.sun.j3d.utils.applet.MainFrame;
 import com.sun.j3d.utils.universe.*;
 import javax.media.j3d.*;
@@ -14,7 +12,6 @@ import static cometsim.Constants.*;
 import javax.media.j3d.GeometryArray;
 import cometsim.planets.*;
 import cometsim.saveAndLoad.LoadResults;
-
 import java.util.*;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
@@ -89,12 +86,12 @@ public class Visualization extends Applet implements ActionListener, KeyListener
         add("Center", c);
         c.addKeyListener(this);
         
+        
+        // describes where we see things from
         viewPlatform = new ViewingPlatform();
         viewPlatform.getViewPlatform().setActivationRadius((float) scale);
-        
         viewTransform = viewPlatform.getViewPlatformTransform();
         view3d = new Transform3D();
-        
         view3d.lookAt(new Point3d(0, 0, scale * 3), new Point3d(0, 0, 0),
                 new Vector3d(0, 1, 0));
         view3d.invert();
@@ -132,7 +129,6 @@ public class Visualization extends Applet implements ActionListener, KeyListener
         reset.addKeyListener(this);
         
         timer = new Timer(speed,this);
-        
     }
     
     /**
@@ -179,7 +175,6 @@ public class Visualization extends Applet implements ActionListener, KeyListener
             
             // This will draw the objects
             pos[i] = new Transform3D();
-            
             coordinates = bodies[0].getKnownBodies().get(i).coordinates(t);
             startposX = coordinates[0];
             startposY = coordinates[1];
@@ -191,36 +186,7 @@ public class Visualization extends Applet implements ActionListener, KeyListener
             objTrans[i].addChild(sphere);
             objRoot.addChild(objTrans[i]);
             
-            
-            // in this for loop we will draw the line which now is drawing the
-            // future of the object. (can be redone so it will draw a tail for
-            // the objects.)
-            /*
-            for(int j=0;j<forwardSteps;j++)
-            {
-            Material sphereMaterial1 = new Material();
-            sphereMaterial1.setEmissiveColor(1.0f,1.0f,1.0f);
-            Appearance sphereAppearance1 = new Appearance();
-            sphereAppearance1.setMaterial(sphereMaterial1);
-            sphere = new Sphere((float) (size/10), sphereAppearance1);
-            objTrans[nbrObjects+i*forwardSteps+j] = new TransformGroup();
-            objTrans[nbrObjects+i*forwardSteps+j].setCapability(TransformGroup.ALLOW_TRANSFORM_WRITE);
-            pos[nbrObjects+i*forwardSteps+j] = new Transform3D();
-            
-            coordinates = bodies[0].getKnownBodies().get(i).coordinates(t+j);
-            startposX = coordinates[0];
-            startposY = coordinates[1];
-            startposZ = coordinates[2];
-            
-            pos[nbrObjects+i*forwardSteps+j].setTranslation( new Vector3f(
-            (float)(startposX),(float)(startposY),(float)(startposZ)));
-            objTrans[nbrObjects+i*forwardSteps+j].setTransform(pos[nbrObjects+i*forwardSteps+j]);
-            objTrans[nbrObjects+i*forwardSteps+j].addChild(sphere);
-            objRoot.addChild(objTrans[nbrObjects+i*forwardSteps+j]);
-            
-            
-            }
-            */
+            // draw lines before the body to see where it will be
             Point3d[] pts = new Point3d[forwardSteps];
             for(int j=0; j<forwardSteps; j++) {
                 coordinates = bodies[0].getKnownBodies().get(i).coordinates(t+j);
@@ -239,11 +205,8 @@ public class Visualization extends Applet implements ActionListener, KeyListener
         
         for(int i=nbrKnownObjects; i<nbrObjects; i++)
         {
-            
-            
             //Creates the material (color on the objects)
             Material sphereMaterial = new Material();
-            //whiteSphMaterial.setEmissiveColor(1.0f,1.0f,1.5f);
             Appearance sphereAppearance = new Appearance();
             sphereAppearance.setMaterial(sphereMaterial);
             
@@ -265,34 +228,7 @@ public class Visualization extends Applet implements ActionListener, KeyListener
             objTrans[i].addChild(sphere);
             objRoot.addChild(objTrans[i]);
             
-            
-            // in this for loop we will draw the line which now is drawing the
-            // future of the object. (can be redone so it will draw a tail for
-            // the objects.)
-            /*
-            for(int j=0;j<forwardSteps;j++)
-            {
-            Material sphereMaterial1 = new Material();
-            sphereMaterial1.setEmissiveColor(1.0f,1.0f,1.5f);
-            Appearance sphereAppearance1 = new Appearance();
-            sphereAppearance1.setMaterial(sphereMaterial1);
-            sphere = new Sphere((float) (size/10), sphereAppearance1);
-            objTrans[nbrObjects+i*forwardSteps+j]= new TransformGroup();
-            objTrans[nbrObjects+i*forwardSteps+j].setCapability(TransformGroup.ALLOW_TRANSFORM_WRITE);
-            pos[nbrObjects+i*forwardSteps+j] = new Transform3D();
-            coordinates = bodies[i-nbrKnownObjects].coordinates(t+j);
-            startposX = coordinates[0];
-            startposY = coordinates[1];
-            startposZ = coordinates[2];
-            pos[nbrObjects+i*forwardSteps+j].setTranslation(new Vector3f(
-            (float)(startposX),(float)(startposY),(float)(startposZ)));
-            objTrans[nbrObjects+i*forwardSteps+j].setTransform(pos[nbrObjects+i*forwardSteps+j]);
-            objTrans[nbrObjects+i*forwardSteps+j].addChild(sphere);
-            objRoot.addChild(objTrans[nbrObjects+i*forwardSteps+j]);
-            
-            }
-            */
-            
+            // draw where lines on where the body will be in the future
             Point3d[] pts = new Point3d[forwardSteps];
             for(int j=0; j<forwardSteps; j++) {
                 coordinates = bodies[i-nbrKnownObjects].coordinates(t+j);
@@ -372,26 +308,6 @@ public class Visualization extends Applet implements ActionListener, KeyListener
                         (float)(startposY),(float)(startposZ)));
                 objTrans[i].setTransform(pos[i]);
                 
-                
-                // in this for loop we will draw the line which now is drawing the
-                // future of the object. (can be redone so it will draw a tail for
-                // the objects.)
-                /*
-                for(int j=0;j<forwardSteps;j++){
-                
-                coordinates = bodies[0].getKnownBodies().get(i).coordinates(t+j);
-                startposX = coordinates[0];
-                startposY = coordinates[1];
-                startposZ = coordinates[2];
-                
-                pos[nbrObjects+i*forwardSteps+j].setTranslation(new Vector3f(
-                (float)(startposX),(float)(startposY),(float)(startposZ)));
-                objTrans[nbrObjects+i*forwardSteps+j].setTransform(pos[nbrObjects+i*forwardSteps+j]);
-                
-                
-                }
-                */
-                
                 Point3d[] pts = new Point3d[forwardSteps];
                 for(int j=0; j<forwardSteps; j++) {
                     coordinates = bodies[0].getKnownBodies().get(i).coordinates(t+j);
@@ -403,13 +319,10 @@ public class Visualization extends Applet implements ActionListener, KeyListener
                 }
                 line.setCoordinates(0,pts);
                 lineShape3D[i].setGeometry(line);
-                
-                
             }
             
             for(int i=nbrKnownObjects; i<nbrObjects; i++)
             {
-                
                 coordinates = bodies[i-nbrKnownObjects].coordinates(t);
                 startposX = coordinates[0];
                 startposY = coordinates[1];
@@ -417,33 +330,16 @@ public class Visualization extends Applet implements ActionListener, KeyListener
                 pos[i].setTranslation(new Vector3f(
                         (float) (startposX),(float)(startposY),(float) (startposZ)));
                 objTrans[i].setTransform(pos[i]);
-                /*
-                for(int j=0;j<forwardSteps;j++)
-                {
-                if(t+j<tmax)
-                {
-                coordinates=bodies[i-nbrKnownObjects].coordinates(t+j);
-                startposX = coordinates[0];
-                startposY = coordinates[1];
-                startposZ = coordinates[2];
-                //        trans[nbrObjects*(i+1)+j]=new Transform3D();
-                pos[nbrObjects+i*forwardSteps+j].setTranslation(new Vector3f(
-                (float) (startposX),(float)(startposY),(float) (startposZ)));
-                objTrans[nbrObjects+i*forwardSteps+j].setTransform(pos[nbrObjects+i*forwardSteps+j]);
-                
-                }
-                }*/
                 
                 Point3d[] pts = new Point3d[forwardSteps];
                 for(int j=0; j<forwardSteps; j++) {
                     if(t+j<tmax){
-                    coordinates = bodies[i-nbrKnownObjects].coordinates(t+j);
-                    pts[j] = new Point3d(coordinates[0],coordinates[1],coordinates[2]);
+                        coordinates = bodies[i-nbrKnownObjects].coordinates(t+j);
+                        pts[j] = new Point3d(coordinates[0],coordinates[1],coordinates[2]);
                     }else{
                         coordinates = bodies[i-nbrKnownObjects].coordinates(tmax);
                         pts[j] = new Point3d(coordinates[0],coordinates[1],coordinates[2]);
                     }
-                   
                 }
                 line = new LineArray(pts.length, GeometryArray.COORDINATES | GeometryArray.COLOR_3);
                 for(int k=0;k<forwardSteps;k++){
@@ -451,7 +347,6 @@ public class Visualization extends Applet implements ActionListener, KeyListener
                 }
                 line.setCoordinates(0,pts);
                 lineShape3D[i].setGeometry(line);
-                        
                 
             }
         }
@@ -474,11 +369,11 @@ public class Visualization extends Applet implements ActionListener, KeyListener
         //Invoked when a key has been typed.
     }
     
-    
-    
+    /**
+     * Do things when puching buttons
+     */
     public void actionPerformed(ActionEvent e )
     {
-        
         if (e.getSource() == goStop)
         {
             if(this.running)
@@ -495,7 +390,6 @@ public class Visualization extends Applet implements ActionListener, KeyListener
                 timer.start();
                 goStop.setLabel("Stop");
             }
-            
             
         }else if(e.getSource() == scaleButton)
         {
@@ -514,11 +408,8 @@ public class Visualization extends Applet implements ActionListener, KeyListener
                         new Point3d(0,0,0), new Vector3d(0,1,0));
                 view3d.invert();
                 viewTransform.setTransform(view3d);
-                
             }
-            
             // This will change where you are looking from
-            
             
         }else if(e.getSource() == speedButton)
         {
@@ -538,7 +429,6 @@ public class Visualization extends Applet implements ActionListener, KeyListener
             timer = new Timer(speed,this);
             // changes the speed
             // the higher the value the slower it will draw
-            
             
         }else if(e.getSource() == reset)
         {
@@ -589,4 +479,3 @@ public class Visualization extends Applet implements ActionListener, KeyListener
     
     
 }
-
